@@ -68,69 +68,30 @@ class ProductListView(APIView):
 
 class ProductCreateView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
-        user= request.user
-        data = request.data
-        name = data.get('name')
-        description = data.get('description')
-        price = data.get('price')
-        image = data.get('image')
-        stock = data.get('stock')
-        stock_alarm = data.get('stock_alarm')
-        category = data.get('category') # id of category
-        category_obj = None
-        if category:
-            try:
-                category_obj = Category.objects.get(id=category)
-            except Category.DoesNotExist:
-                return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if category_obj is None:
-            return Response(
-                {'error': 'Category not found'},
-                status=status.HTTP_404_NOT_FOUND)
-        
-        if not name or not description or not price or not image or not stock  or not category:
-            return Response(
-                {'error': 'name, description, price, image, stock, category fields are required'},
-                status=status.HTTP_400_BAD_REQUEST)
-        if user is None:
-            return Response(
-                {'error': 'User is not authenticated'},
-                status=status.HTTP_401_UNAUTHORIZED)
-      
-        if user.is_superuser or user.role == 'staff':
-            product = Product.objects.create(
-                name=name,
-                description=description,
-                price=price,
-                image=image,
-                stock=stock,
-                stock_alarm=stock_alarm,
-                category=category_obj
-            )
-            return Response({'message': 'Product created successfully'}, status=status.HTTP_201_CREATED)
-        else:
+        user = request.user
+        if not (user.is_superuser or user.role == 'staff'):
             return Response({'error': 'User is not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProductSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=user)
+            return Response({
+                'message': 'Product created successfully',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+      
            
 
 
 class ProductUpdateView(APIView):
     permission_classes = [IsAuthenticated]
+
     def put(self, request, pk):
-        user= request.user
-        data = request.data
-        name = data.get('name')
-        description = data.get('description')
-        price = data.get('price')
-        image = data.get('image')
-        stock = data.get('stock')
-        stock_alarm = data.get('stock_alarm')
-        category_id = data.get('category')
-
-        if user is None:
-            return Response({'error': 'User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        user = request.user
         if not (user.is_superuser or user.role == 'staff'):
             return Response({'error': 'User is not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -139,22 +100,17 @@ class ProductUpdateView(APIView):
         except Product.DoesNotExist:
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if category_id:
-            try:
-                category_obj = Category.objects.get(id=category_id)
-                product.category = category_obj
-            except Category.DoesNotExist:
-                return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if name: product.name = name
-        if description: product.description = description
-        if price: product.price = price
-        if image: product.image = image
-        if stock is not None: product.stock = stock
-        if stock_alarm is not None: product.stock_alarm = stock_alarm
-
-        product.save()
-        return Response({'message': 'Product updated successfully'}, status=status.HTTP_200_OK)
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            # Set the user who is updating for the signal to capture
+            product._updated_by = user
+            serializer.save()
+            return Response({
+                'message': 'Product updated successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

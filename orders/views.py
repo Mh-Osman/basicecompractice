@@ -99,6 +99,10 @@ class CheckoutView(APIView):
                 price=product.price
             )
 
+            # Pass user and order_id for history signals
+            product._updated_by = user
+            product._order_id = order.id
+            
             product.stock -= quantity
             product.save()
 
