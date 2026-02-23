@@ -33,9 +33,19 @@ class CreateCategoryView(APIView):
             category = Category.objects.create(
                 name=name,
             )
-            return Response({'message': 'Category created successfully'}, status=status.HTTP_201_CREATED)
+            return Response(
+                {
+                
+                'message': 'Category created successfully',
+                'data': CategorySerializer(category).data,
+                }, 
+                status=status.HTTP_201_CREATED
+                )
         else:
-            return Response({'error': 'User is not authorized'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'User is not authorized'}, 
+                status=status.HTTP_403_FORBIDDEN
+                )
 class CategoryUpdateView(APIView):
     permission_classes = [IsAuthenticated]
     def put(self, request, pk):

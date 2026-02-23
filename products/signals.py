@@ -12,12 +12,32 @@ def capture_old_product_data(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Product)
 def create_product_edit_history(sender, instance, created, **kwargs):
-    if not created and hasattr(instance, '_old_instance') and instance._old_instance:
+    from decimal import Decimal
+    
+    new_data = model_to_dict(instance)
+    for key, value in new_data.items():
+        if isinstance(value, Decimal):
+            new_data[key] = str(value)
+        elif key == 'image':
+            new_data[key] = str(value) if value else None
+
+    if created:
+        # For initial creation, previous_data is empty
+        ProductEditHistory.objects.create(
+            product=instance,
+            previous_data={},
+            updated_data=new_data,
+            order_id=getattr(instance, '_order_id', None),
+            updated_by=getattr(instance, '_updated_by', instance.created_by)
+        )
+    elif hasattr(instance, '_old_instance') and instance._old_instance:
         old_data = model_to_dict(instance._old_instance)
-        new_data = model_to_dict(instance)
-        for d in [old_data, new_data]:
-            if 'image' in d:
-                d['image'] = str(d['image']) if d['image'] else None
+        for key, value in old_data.items():
+            if isinstance(value, Decimal):
+                old_data[key] = str(value)
+            elif key == 'image':
+                old_data[key] = str(value) if value else None
+        
         if old_data != new_data:
             ProductEditHistory.objects.create(
                 product=instance,

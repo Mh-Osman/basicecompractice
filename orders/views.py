@@ -32,7 +32,13 @@ class CartView(APIView):
             cart_item.quantity = quantity
         cart_item.save()
 
-        return Response({'message': 'Product added to cart'}, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+            'message': 'Product added to cart',
+            'data': CartItemSerializer(cart_item).data
+            }, 
+            
+            status=status.HTTP_201_CREATED)
 
     def patch(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
@@ -96,7 +102,7 @@ class CheckoutView(APIView):
                 order=order,
                 product=product,
                 quantity=quantity,
-                price=product.price
+                price=product.discount_price
             )
 
             # Pass user and order_id for history signals
@@ -106,7 +112,7 @@ class CheckoutView(APIView):
             product.stock -= quantity
             product.save()
 
-            total_price += product.price * quantity
+            total_price += product.discount_price * quantity
 
         order.total_price = total_price
         order.save()
