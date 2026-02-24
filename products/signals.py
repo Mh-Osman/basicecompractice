@@ -1,12 +1,13 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from .models import Product, ProductEditHistory
+from .models import Product, ProductEditHistory, StockMovement
 from django.forms.models import model_to_dict
 
 @receiver(pre_save, sender=Product)
 def capture_old_product_data(sender, instance, **kwargs):
     try:
         instance._old_instance = Product.objects.get(pk=instance.pk)
+        
     except Product.DoesNotExist:
         instance._old_instance = None
 
@@ -45,4 +46,54 @@ def create_product_edit_history(sender, instance, created, **kwargs):
                 updated_data=new_data,
                 order_id=getattr(instance, '_order_id', None),
                 updated_by=getattr(instance, '_updated_by', None)
+            )
+        
+    # --- Stock Movement Tracking ---
+    # Retrieve order and performer from instance attributes (set in views)
+    order_id = getattr(instance, '_order_id', None)
+    order = None
+    if order_id:
+        from orders.models import Order
+        try:
+            order = Order.objects.get(id=order_id)
+        except (Order.DoesNotExist, ValueError):
+            order = None
+
+    performed_by = getattr(instance, '_updated_by', instance.created_by)
+
+    if created:
+        # Initial Stock Movement
+        StockMovement.objects.create(
+            product=instance,
+            quantity=instance.stock,
+            previous_stock=0,
+            new_stock=instance.stock,
+            movement_type='in',
+            performed_by=performed_by,
+            remarks="Initial stock on creation"
+        )
+    elif hasattr(instance, '_old_instance') and instance._old_instance:
+        old_stock = instance._old_instance.stock
+        new_stock = instance.stock
+        
+        if old_stock != new_stock:
+            diff = new_stock - old_stock
+            mov_type = 'in' if diff > 0 else 'out'
+            
+            # If it's a sale (linked to an order), its 'out'
+            if order:
+                mov_type = 'out'
+                remarks = f"Sale - Order #{order.id}"
+            else:
+                remarks = "Manual Adjustment/Restock"
+
+            StockMovement.objects.create(
+                product=instance,
+                quantity=abs(diff),
+                previous_stock=old_stock,
+                new_stock=new_stock,
+                movement_type=mov_type,
+                order=order,
+                performed_by=performed_by,
+                remarks=remarks
             )

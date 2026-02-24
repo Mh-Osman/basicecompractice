@@ -100,3 +100,43 @@ class ProductEditHistory(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.updated_at} - {self.updated_by}"
+
+class StockMovement(models.Model):
+    MOVEMENT_TYPES = [
+        ('in', 'Stock In (Restock)'),
+        ('out', 'Stock Out (Sale)'),
+        ('adjustment', 'Adjustment'),
+        ('return', 'Return'),
+    ]
+
+    product = models.ForeignKey(
+        'Product', 
+        on_delete=models.CASCADE, 
+        related_name='stock_movements'
+    )
+    quantity = models.IntegerField()  
+    previous_stock = models.IntegerField()
+    new_stock = models.IntegerField()
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
+    
+    
+    order = models.ForeignKey(
+        'orders.Order', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+    
+   
+    performed_by = models.ForeignKey(
+        'users.Customer', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    remarks = models.TextField(blank=True, null=True) 
+
+    def __str__(self):
+        return f"{self.product.name} ({self.movement_type}) - Qty: {self.quantity}"
