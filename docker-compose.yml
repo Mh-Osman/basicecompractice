@@ -1,4 +1,12 @@
 services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    restart: always
+
   web:
     build: .
     volumes:
@@ -9,4 +17,9 @@ services:
       - .env
     environment:
       - DEBUG=True
+    depends_on:
+      - db
     restart: always
+
+volumes:
+  postgres_data:
