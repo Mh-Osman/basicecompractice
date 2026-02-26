@@ -97,3 +97,22 @@ def create_product_edit_history(sender, instance, created, **kwargs):
                 performed_by=performed_by,
                 remarks=remarks
             )
+
+@receiver(post_save, sender=StockMovement)
+def broadcast_stock_update(sender, instance, created, **kwargs):
+    if created:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'stock_updates',
+            {
+                'type': 'stock_update',
+                'product_name': instance.product.name,
+                'quantity': instance.quantity,
+                'movement_type': instance.get_movement_type_display(),
+                'new_stock': instance.new_stock,
+                'timestamp': instance.created_at.strftime('%H:%M:%S')
+            }
+        )

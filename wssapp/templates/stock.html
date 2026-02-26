@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stock Monitoring</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        #status { padding: 5px 10px; border-radius: 5px; font-size: 0.9em; float: right; }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+        .badge-in { background: #e3f2fd; color: #0d47a1; }
+        .badge-out { background: #fff3e0; color: #e65100; }
+        .new-row { animation: highlight 2s; }
+        @keyframes highlight {
+            from { background: #fff9c4; }
+            to { background: white; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span id="status" class="disconnected">Disconnected</span>
+        <h1>Live Stock Monitoring</h1>
+        <table id="stock-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Product</th>
+                    <th>Movement</th>
+                    <th>Qty</th>
+                    <th>New Stock</th>
+                </tr>
+            </thead>
+            <tbody id="stock-body">
+                <!-- Data will appear here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const stockBody = document.getElementById('stock-body');
+        const statusSpan = document.getElementById('status');
+
+        function connect() {
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/chat/');
+
+            socket.onopen = function() {
+                statusSpan.innerText = 'Connected';
+                statusSpan.className = 'connected';
+                console.log('Connected to WebSocket');
+            };
+
+            socket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                if (data.type === 'stock_update') {
+                    addTableRow(data);
+                }
+            };
+
+            socket.onclose = function(e) {
+                statusSpan.innerText = 'Disconnected';
+                statusSpan.className = 'disconnected';
+                console.log('Socket closed. Reconnecting in 2s...', e.reason);
+                setTimeout(connect, 2000);
+            };
+
+            socket.onerror = function(err) {
+                console.error('Socket error: ', err.message);
+                socket.close();
+            };
+        }
+
+        function addTableRow(data) {
+            const row = document.createElement('tr');
+            row.className = 'new-row';
+            
+            const badgeClass = data.movement_type === 'Stock In (Restock)' ? 'badge-in' : 'badge-out';
+
+            row.innerHTML = `
+                <td>${data.timestamp || new Date().toLocaleTimeString()}</td>
+                <td><strong>${data.product_name}</strong></td>
+                <td><span class="badge ${badgeClass}">${data.movement_type}</span></td>
+                <td>${data.quantity}</td>
+                <td>${data.new_stock}</td>
+            `;
+
+            // Insert at the top
+            stockBody.insertBefore(row, stockBody.firstChild);
+
+            // Remove highlight after 2s
+            setTimeout(() => row.classList.remove('new-row'), 2000);
+        }
+
+        connect();
+    </script>
+</body>
+</html>
