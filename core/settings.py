@@ -41,6 +41,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -53,8 +54,11 @@ INSTALLED_APPS = [
     'orders',
     'suppliers',
     'activitylog',
+    'wssapp',
+    'channels',
 
 ]
+ASGI_APPLICATION = 'core.asgi.application'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -112,7 +116,14 @@ DATABASES = {
     }
 }
 
-
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
