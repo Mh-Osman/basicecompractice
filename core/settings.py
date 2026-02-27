@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'activitylog',
     'wssapp',
     'channels',
+    'reviews',
 
 ]
 ASGI_APPLICATION = 'core.asgi.application'

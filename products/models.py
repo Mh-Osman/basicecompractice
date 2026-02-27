@@ -89,6 +89,11 @@ class Product(models.Model):
             return self.selling_price - (self.discount / 100 * self.selling_price)
         return self.selling_price
 
+    @property
+    def average_rating(self):
+        from reviews.models import Review
+        return Review.objects.filter(product=self).aggregate(models.Avg('rating'))['rating__avg'] or 0
+
 
 class ProductEditHistory(models.Model):
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='edit_history')
